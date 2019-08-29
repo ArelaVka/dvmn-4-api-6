@@ -11,6 +11,7 @@ def get_new_comics():
     response.raise_for_status()
     with open(filename, 'wb') as file:
         file.write(response.content)
+    print(response_json["alt"])
 
 if __name__ == '__main__':
     get_new_comics()
