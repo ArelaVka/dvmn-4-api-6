@@ -1,11 +1,11 @@
 import requests
 import os
 import random
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client_id = os.getenv('CLIENT_ID')
 group_id = os.getenv('GROUP_ID')
 token = os.getenv('TOKEN')
 vk_api_method = 'https://api.vk.com/method/'
@@ -13,6 +13,8 @@ vk_api_method = 'https://api.vk.com/method/'
 
 def get_new_comics():
     url = 'https://xkcd.com/info.0.json'
+    if not requests.get(url).ok:
+        sys.exit('xkcd.com not allowed')
     response_json = requests.get(url).json()
     max_num = response_json['num']
     download_num = random.randint(1, max_num)
@@ -31,25 +33,32 @@ def get_new_comics():
 def get_uploaded_photo_params(filename):
     method = 'photos.getWallUploadServer'
     url = '{}{}?access_token={}&v=5.101'.format(vk_api_method, method, token)
-    response_get = requests.get(url)
-    response_get.raise_for_status()
-    upload_url = response_get.json()['response']['upload_url']
+    response = requests.get(url)
+    response_dict = response.json()
+    first_field = list(response_dict.keys())[0]
+    if first_field == 'error':
+        error_message = response_dict['error']['error_msg']
+        sys.exit(method + ': ' + error_message)
+    response.raise_for_status()
+    upload_url = response.json()['response']['upload_url']
     image_file_descriptor = open(filename, 'rb')
     request = requests.post(upload_url, files={'photo': image_file_descriptor})
-    photo = request.json()['photo']
-    server = request.json()['server']
-    hash = request.json()['hash']
+    server, photo, hash = request.json().values()
     image_file_descriptor.close()
     os.remove(filename)
-    return photo, server, hash
+    return server, photo, hash
 
 
-def get_saved_photo_id(photo, server, hash):
+def get_saved_photo_id(server, photo, hash):
     method = 'photos.saveWallPhoto'
-    url = '{}{}?access_token={}&v=5.101&photo={}&server={}&hash={}'.format(vk_api_method, method, token, photo, server,
+    url = '{}{}?access_token={}&v=5.101&server={}&photo={}&hash={}'.format(vk_api_method, method, token, server, photo,
                                                                            hash)
     response_post = requests.post(url)
     result = response_post.json()
+    first_field = list(result.keys())[0]
+    if first_field == 'error':
+        error_message = result['error']['error_msg']
+        sys.exit(method + ': ' + error_message)
     return result['response'][0]['id']
 
 
@@ -61,12 +70,15 @@ def upload_wall_post(message, attachments):
                                                                                                     group_id,
                                                                                                     message,
                                                                                                     attachments)
-    requests.post(url)
+    result = requests.post(url).json()
+    first_field = list(result.keys())[0]
+    if first_field == 'error':
+        error_message = result['error']['error_msg']
+        sys.exit(method + ': ' + error_message)
 
 
 if __name__ == '__main__':
     filename, caption = get_new_comics()
-    photo, server, hash = get_uploaded_photo_params(filename)
-    # owner_id = '-{}'.format(group_id)
-    attachments = 'photo2094408_{}'.format(get_saved_photo_id(photo, server, hash))
+    server, photo, hash = get_uploaded_photo_params(filename)
+    attachments = 'photo2094408_{}'.format(get_saved_photo_id(server, photo, hash))
     upload_wall_post(caption, attachments)
