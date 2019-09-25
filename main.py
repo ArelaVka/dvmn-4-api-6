@@ -16,7 +16,6 @@ def get_new_comics():
     img_link = response['img']
     filename = img_link.split('/')[-1]
     img_data = requests.get(img_link)
-    img_data.raise_for_status()
     with open(filename, 'wb') as file:
         file.write(img_data.content)
     caption = response['alt']
@@ -29,16 +28,17 @@ def get_uploaded_photo_params(filename):
     payload = {'access_token': TOKEN,
                'v': '5.101'}
     response = requests.get(url, params=payload).json()
-    first_field = list(response.keys())[0]
-    if first_field == 'error':
+    if 'error' in response.keys():
         error_message = response['error']['error_msg']
         sys.exit(method + ': ' + error_message)
     upload_url = response['response']['upload_url']
-    image_file_descriptor = open(filename, 'rb')
-    request = requests.post(upload_url, files={'photo': image_file_descriptor})
-    server, photo, hash_value = request.json().values()
-    image_file_descriptor.close()
-    os.remove(filename)
+    with open(filename, 'rb') as image_file_descriptor:
+        upload_response = requests.post(upload_url, files={'photo': image_file_descriptor}).json()
+        server = upload_response['server']
+        photo = upload_response['photo']
+        hash_value = upload_response['hash']
+        image_file_descriptor.close()
+        os.remove(filename)
     return server, photo, hash_value
 
 
@@ -50,12 +50,11 @@ def get_saved_photo_id(server, photo, hash_value):
                'server': server,
                'photo': photo,
                'hash': hash_value}
-    result = requests.post(url, params=payload).json()
-    first_field = list(result.keys())[0]
-    if first_field == 'error':
-        error_message = result['error']['error_msg']
+    response = requests.post(url, params=payload).json()
+    if 'error' in response.keys():
+        error_message = response['error']['error_msg']
         sys.exit(method + ': ' + error_message)
-    return result['response'][0]['id']
+    return response['response'][0]['id']
 
 
 def upload_wall_post(message, attachments):
@@ -67,10 +66,9 @@ def upload_wall_post(message, attachments):
                'from_group': '1',
                'message': message,
                'attachments': attachments}
-    result = requests.post(url, params=payload).json()
-    first_field = list(result.keys())[0]
-    if first_field == 'error':
-        error_message = result['error']['error_msg']
+    response = requests.post(url, params=payload).json()
+    if 'error' in response.keys():
+        error_message = response['error']['error_msg']
         sys.exit(method + ': ' + error_message)
 
 
