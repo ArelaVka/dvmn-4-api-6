@@ -22,11 +22,19 @@ def get_new_comics():
     return filename, caption
 
 
+def check_response(response_data):
+    print(response_data)
+    if 'error' in response_data:
+        return
+    else:
+        return response_data
+
+
 def get_uploaded_photo_params(filename):
     method = 'photos.getWallUploadServer'
-    url = 'https://api.vk.com/method/' + method
+    url = VK_API + method
     payload = {'access_token': TOKEN,
-               'v': '5.101'}
+               'v': VK_API_VERSION}
     response = requests.get(url, params=payload).json()
     if 'error' in response.keys():
         error_message = response['error']['error_msg']
@@ -39,14 +47,14 @@ def get_uploaded_photo_params(filename):
         hash_value = upload_response['hash']
         image_file_descriptor.close()
         os.remove(filename)
-    return server, photo, hash_value
+        return server, photo, hash_value
 
 
 def get_saved_photo_id(server, photo, hash_value):
     method = 'photos.saveWallPhoto'
-    url = 'https://api.vk.com/method/' + method
+    url = VK_API + method
     payload = {'access_token': TOKEN,
-               'v': '5.101',
+               'v': VK_API_VERSION,
                'server': server,
                'photo': photo,
                'hash': hash_value}
@@ -59,9 +67,9 @@ def get_saved_photo_id(server, photo, hash_value):
 
 def upload_wall_post(message, attachments):
     method = 'wall.post'
-    url = 'https://api.vk.com/method/' + method
+    url = VK_API + method
     payload = {'access_token': TOKEN,
-               'v': '5.101',
+               'v': VK_API_VERSION,
                'owner_id': '-' + GROUP_ID,
                'from_group': '1',
                'message': message,
@@ -83,4 +91,6 @@ if __name__ == '__main__':
     load_dotenv()
     GROUP_ID = os.getenv('GROUP_ID')
     TOKEN = os.getenv('TOKEN')
+    VK_API = 'https://api.vk.com/method/'
+    VK_API_VERSION = '5.101'
     main()
