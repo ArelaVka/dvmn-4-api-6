@@ -1,35 +1,32 @@
 import requests
 import os
 import random
-import sys
 from dotenv import load_dotenv
 
 
 def get_new_comics():
     url = 'https://xkcd.com/info.0.json'
     response = requests.get(url)
-    if response.ok:
-        max_num = response.json()['num']
-        download_num = random.randint(1, max_num)
-        url = 'https://xkcd.com/{}/info.0.json'.format(str(download_num))
-        response = requests.get(url)
-        if response.ok:
-            response_data = response.json()
-            img_link = response_data['img']
-            filename = img_link.split('/')[-1]
-            img_data = requests.get(img_link)
-            with open(filename, 'wb') as file:
-                file.write(img_data.content)
-            caption = response_data['alt']
-            return filename, caption
+    response.raise_for_status()
+    max_num = response.json()['num']
+    download_num = random.randint(1, max_num)
+    url = 'https://xkcd.com/{}/info.0.json'.format(str(download_num))
+    response = requests.get(url)
+    response.raise_for_status()
+    response_data = response.json()
+    img_link = response_data['img']
+    filename = img_link.split('/')[-1]
+    img_data = requests.get(img_link)
+    with open(filename, 'wb') as file:
+        file.write(img_data.content)
+    caption = response_data['alt']
+    return filename, caption
 
 
-def check_response(response_data):
-    print(response_data)
-    if 'error' in response_data:
-        return
-    else:
-        return response_data
+def check_vk_response(response):
+    if 'error' in response.keys():
+        print(response['error']['error_msg'])
+        raise requests.HTTPError
 
 
 def get_uploaded_photo_params(filename):
@@ -38,9 +35,7 @@ def get_uploaded_photo_params(filename):
     payload = {'access_token': TOKEN,
                'v': VK_API_VERSION}
     response = requests.get(url, params=payload).json()
-    if 'error' in response.keys():
-        error_message = response['error']['error_msg']
-        sys.exit(method + ': ' + error_message)
+    check_vk_response(response)
     upload_url = response['response']['upload_url']
     with open(filename, 'rb') as image_file_descriptor:
         upload_response = requests.post(upload_url, files={'photo': image_file_descriptor}).json()
@@ -61,9 +56,7 @@ def get_saved_photo_id(server, photo, hash_value):
                'photo': photo,
                'hash': hash_value}
     response = requests.post(url, params=payload).json()
-    if 'error' in response.keys():
-        error_message = response['error']['error_msg']
-        sys.exit(method + ': ' + error_message)
+    check_vk_response(response)
     return response['response'][0]['id']
 
 
@@ -73,13 +66,10 @@ def upload_wall_post(message, attachments):
     payload = {'access_token': TOKEN,
                'v': VK_API_VERSION,
                'owner_id': '-' + GROUP_ID,
-               'from_group': '1',
                'message': message,
                'attachments': attachments}
     response = requests.post(url, params=payload).json()
-    if 'error' in response.keys():
-        error_message = response['error']['error_msg']
-        sys.exit(method + ': ' + error_message)
+    check_vk_response(response)
 
 
 def main():
