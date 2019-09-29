@@ -7,19 +7,21 @@ from dotenv import load_dotenv
 
 def get_new_comics():
     url = 'https://xkcd.com/info.0.json'
-    if not requests.get(url).ok:
-        sys.exit('xkcd.com not allowed')
-    max_num = requests.get(url).json()['num']
-    download_num = random.randint(1, max_num)
-    url = 'https://xkcd.com/{}/info.0.json'.format(str(download_num))
-    response = requests.get(url).json()
-    img_link = response['img']
-    filename = img_link.split('/')[-1]
-    img_data = requests.get(img_link)
-    with open(filename, 'wb') as file:
-        file.write(img_data.content)
-    caption = response['alt']
-    return filename, caption
+    response = requests.get(url)
+    if response.ok:
+        max_num = response.json()['num']
+        download_num = random.randint(1, max_num)
+        url = 'https://xkcd.com/{}/info.0.json'.format(str(download_num))
+        response = requests.get(url)
+        if response.ok:
+            response_data = response.json()
+            img_link = response_data['img']
+            filename = img_link.split('/')[-1]
+            img_data = requests.get(img_link)
+            with open(filename, 'wb') as file:
+                file.write(img_data.content)
+            caption = response_data['alt']
+            return filename, caption
 
 
 def check_response(response_data):
