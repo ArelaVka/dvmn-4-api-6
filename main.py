@@ -3,6 +3,9 @@ import os
 import random
 from dotenv import load_dotenv
 
+VK_API_URL = 'https://api.vk.com/method/'
+VK_API_VERSION = '5.101'
+
 
 def get_new_comics():
     url = 'https://xkcd.com/info.0.json'
@@ -24,15 +27,14 @@ def get_new_comics():
 
 
 def check_vk_response(response):
-    if 'error' in response.keys():
-        print(response['error']['error_msg'])
-        raise requests.HTTPError
+    if 'error' in response:
+        raise requests.HTTPError(response['error']['error_msg'])
 
 
-def get_uploaded_photo_params(filename):
+def get_uploaded_photo_params(token, filename):
     method = 'photos.getWallUploadServer'
-    url = VK_API + method
-    payload = {'access_token': TOKEN,
+    url = VK_API_URL + method
+    payload = {'access_token': token,
                'v': VK_API_VERSION}
     response = requests.get(url, params=payload).json()
     check_vk_response(response)
@@ -47,10 +49,10 @@ def get_uploaded_photo_params(filename):
         return server, photo, hash_value
 
 
-def get_saved_photo_id(server, photo, hash_value):
+def get_saved_photo_id(token, server, photo, hash_value):
     method = 'photos.saveWallPhoto'
-    url = VK_API + method
-    payload = {'access_token': TOKEN,
+    url = VK_API_URL + method
+    payload = {'access_token': token,
                'v': VK_API_VERSION,
                'server': server,
                'photo': photo,
@@ -60,12 +62,12 @@ def get_saved_photo_id(server, photo, hash_value):
     return response['response'][0]['id']
 
 
-def upload_wall_post(message, attachments):
+def upload_wall_post(token, group_id, message, attachments):
     method = 'wall.post'
-    url = VK_API + method
-    payload = {'access_token': TOKEN,
+    url = VK_API_URL + method
+    payload = {'access_token': token,
                'v': VK_API_VERSION,
-               'owner_id': '-' + GROUP_ID,
+               'owner_id': '-' + group_id,
                'message': message,
                'attachments': attachments}
     response = requests.post(url, params=payload).json()
@@ -73,16 +75,14 @@ def upload_wall_post(message, attachments):
 
 
 def main():
+    token = os.getenv('TOKEN')
+    group_id = os.getenv('GROUP_ID')
     filename, caption = get_new_comics()
-    server, photo, hash_value = get_uploaded_photo_params(filename)
-    attachments = 'photo2094408_{}'.format(get_saved_photo_id(server, photo, hash_value))
-    upload_wall_post(caption, attachments)
+    server, photo, hash_value = get_uploaded_photo_params(token, filename)
+    attachments = 'photo2094408_{}'.format(get_saved_photo_id(token, server, photo, hash_value))
+    upload_wall_post(token, group_id, caption, attachments)
 
 
 if __name__ == '__main__':
     load_dotenv()
-    GROUP_ID = os.getenv('GROUP_ID')
-    TOKEN = os.getenv('TOKEN')
-    VK_API = 'https://api.vk.com/method/'
-    VK_API_VERSION = '5.101'
     main()
